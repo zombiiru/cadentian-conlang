@@ -1,10 +1,10 @@
 # cadentian-conlang
 
-SolReSolみたいな人工言語を作ってみたいプロジェクト。
+Solresol みたいな人工言語を作ってみたいプロジェクト。
 
-Cadentia とはラテン語で「落ちている状態・落下」を意味する名詞で機能和声の終止形を意味するKadenz（独）、Cadence（英）、Cadenza（伊）の語源。
+Cadentia とはラテン語で「落ちている状態・落下」を意味する名詞で機能和声の終止形を意味する Kadenz（独）、Cadence（英）、Cadenza（伊）の語源。
 
-MarkdownテキストがGithub Pagesで閲覧できる。
+Markdown テキストを Github Pages で閲覧できる。
 
 ABC Notation をコードブロックで埋め込みが可能。
 
@@ -44,10 +44,8 @@ gem -v
 
 
 ### **Windows向けの Gemfile 設定と動作確認:** プロジェクト直下.
-```
-JekyllがWindowsのファイル変更を高速に検知できるように、`Gemfile` に `wdm` というライブラリを追加しておきます。
 
-```
+JekyllがWindowsのファイル変更を高速に検知できるように、`Gemfile` に `wdm` というライブラリを追加しておきます。
 
 **`Gemfile` の記述内容:**
 
