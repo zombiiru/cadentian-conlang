@@ -3,75 +3,265 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ page.title | default: "楽譜メモ" }}</title>
+  <title>{{ page.title | default: "タイトル" }}</title>
   <!-- abcjs の JS と CSS -->
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/dist/abcjs-basic-min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/abcjs-audio.css"><style>
-    body { max-width: 800px; margin: 0 auto; padding: 20px; font-family: sans-serif; line-height: 1.6; }
-    .abc-container { background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #eee; }
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/abcjs-audio.css">
+  <style>
+    body { max-width: 800px; margin: 0 auto; padding: 20px; font-family: sans-serif; line-height: 1.8; }
+    
+    /* ブロック楽譜のスタイル */
+    .abc-container {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border: 1px solid #eee;
+      cursor: pointer; /* クリック可能であることを示す */
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    .abc-container:hover {
+      background-color: #f0f4fe; /* ホバー時の背景色 */
+    }
+    .abc-container.abc-playing {
+      background-color: #fce8e6; /* 再生中の背景色 */
+      border-color: #d93025; /* 再生中の枠線 */
+    }
+    
+    /* インライン楽譜のスタイル */
+    .inline-abc-paper {
+      display: inline-block !important;
+      vertical-align: middle;
+      margin: 0 4px;
+      line-height: 1;
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 2px 3px;
+      transition: background-color 0.2s, box-shadow 0.2s;
+    }
+    .inline-abc-paper:hover {
+      background-color: #e8f0fe;
+    }
+    .inline-abc-paper.abc-playing {
+      background-color: #fce8e6;
+      box-shadow: 0 0 0 2px #d93025;
+    }
+    .inline-abc-paper svg {
+      display: inline-block !important;
+      vertical-align: middle !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    /* 再生中の音符を赤く変更する共通CSS（ブロック・インライン両対応） */
+    .abcjs-highlight,
+    .abcjs-highlight path,
+    .abcjs-highlight text {
+      fill: #d93025 !important;
+      stroke: #d93025 !important;
+    }
   </style>
 </head>
 <body>
 
   {{ content }}
+
   <script>
     document.addEventListener("DOMContentLoaded", function() {
+
+      // 1. ABCテキストの自動補完関数
+      function formatAbcText(rawText) {
+        let text = rawText.trim();
+        text = text.replace(/^abc:\s*/, "");
+        text = text.replace(/(M:\d+\/\d+)\s*/g, "$1\n");
+        text = text.replace(/(L:\d+\/\d+)\s*/g, "$1\n");
+        text = text.replace(/(K:[A-Ga-g][#b]?[a-zA-Z]*)\s*/g, "$1\n");
+
+        if (!text.includes("K:")) text = "K:C\n" + text;
+        if (!text.includes("X:")) text = "X:1\n" + text;
+
+        return text;
+      }
+
+      // 2. 【共通処理】クリック再生＆音符赤色ハイライト
+      function attachClickToPlay(container, visualObj) {
+        if (!ABCJS.synth || !ABCJS.synth.supportsAudio() || !visualObj) return;
+
+        container.title = "クリックで再生 / 停止";
+        let synth = null;
+        let timingCallbacks = null;
+        let isPlaying = false;
+        let stopTimer = null;
+
+        const clearHighlight = () => {
+          container.querySelectorAll(".abcjs-highlight").forEach(el => {
+            el.classList.remove("abcjs-highlight");
+          });
+        };
+
+        container.addEventListener("click", async function(e) {
+          e.stopPropagation();
+
+          // 再生中なら停止
+          if (isPlaying) {
+            if (synth) synth.stop();
+            if (timingCallbacks) timingCallbacks.stop();
+            isPlaying = false;
+            container.classList.remove("abc-playing");
+            clearHighlight();
+            if (stopTimer) clearTimeout(stopTimer);
+            return;
+          }
+
+          try {
+            if (!synth) {
+              synth = new ABCJS.synth.CreateSynth();
+              await synth.init({ visualObj: visualObj });
+              await synth.prime();
+            }
+
+            // 音の進行に合わせた赤色ハイライトタイマー
+            timingCallbacks = new ABCJS.TimingCallbacks(visualObj, {
+              eventCallback: function(ev) {
+                clearHighlight();
+                if (ev && ev.elements) {
+                  ev.elements.forEach(elementGroup => {
+                    elementGroup.forEach(el => {
+                      el.classList.add("abcjs-highlight");
+                    });
+                  });
+                }
+              }
+            });
+
+            isPlaying = true;
+            container.classList.add("abc-playing");
+
+            timingCallbacks.start();
+            synth.start();
+
+            // 演奏終了時の自動停止
+            const duration = (visualObj.getTotalTime() || 2) * 1000;
+            stopTimer = setTimeout(() => {
+              isPlaying = false;
+              container.classList.remove("abc-playing");
+              if (timingCallbacks) timingCallbacks.stop();
+              clearHighlight();
+            }, duration + 100);
+
+          } catch (err) {
+            console.error("再生エラー:", err);
+          }
+        });
+      }
+
+      // ==========================================
+      // ブロック楽譜 (```abc ... ```) の変換
+      // ==========================================
       const preElements = document.querySelectorAll("pre");
+      let blockCount = 0;
 
-      let count = 0;
       preElements.forEach((pre) => {
-        const abcText = pre.textContent.trim();
+        const rawText = pre.textContent.trim();
+        const isAbcBlock = pre.querySelector('code[class*="language-abc"]') || 
+                           rawText.startsWith("abc:") || 
+                           rawText.includes("X:") || 
+                           rawText.includes("K:");
 
-        if (abcText.includes("X:") && abcText.includes("K:")) {
-          count++;
-          const index = count;
-
+        if (isAbcBlock) {
+          blockCount++;
           const targetEl = pre.closest('.highlighter-rouge') || pre;
 
           const container = document.createElement("div");
           container.className = "abc-container";
-          const paperId = "abc-paper-" + index;
-          const audioId = "abc-audio-" + index;
-          container.innerHTML = `<div id="${paperId}"></div><div id="${audioId}"></div>`;
+          container.id = "abc-block-" + blockCount;
 
           targetEl.replaceWith(container);
 
+          const abcText = formatAbcText(rawText);
+
           if (window.ABCJS) {
-            const visualObj = ABCJS.renderAbc(paperId, abcText)[0];
+            const visualObj = ABCJS.renderAbc(container.id, abcText, {
+              responsive: "resize",
+              add_classes: true
+            })[0];
 
-            if (ABCJS.synth && ABCJS.synth.supportsAudio() && visualObj) {
-              const synthControl = new ABCJS.synth.SynthController();
-              
-              // プレイヤーの初期化
-              synthControl.load("#" + audioId, null, {
-                displayRestart: true,
-                displayPlay: true,
-                displayProgress: true,
-                displayWarp: true
-              });
-
-              // 音源データ(SoundFont)の読み込み先を指定
-              const soundFontUrl = "https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/";
-
-              const createSynth = new ABCJS.synth.CreateSynth();
-              createSynth.init({
-                visualObj: visualObj,
-                options: {
-                  soundFontURL: soundFontUrl
-                }
-              }).then(function () {
-                synthControl.setTune(visualObj, false, {
-                  soundFontURL: soundFontUrl
-                }).then(function () {
-                  console.log("Audio loaded successfully.");
-                });
-              }).catch(function (error) {
-                console.error("Audio synth error:", error);
-              });
-            }
+            // 共通のクリック再生イベントを付与
+            attachClickToPlay(container, visualObj);
           }
         }
       });
+
+      // ==========================================
+      // インライン楽譜 (`abc: ...`) の変換
+      // ==========================================
+      const codeElements = document.querySelectorAll("code");
+      let inlineCount = 0;
+
+      codeElements.forEach((codeEl) => {
+        const text = codeEl.textContent.trim();
+
+        if (text.startsWith("abc:")) {
+          inlineCount++;
+          const inlineId = "inline-abc-" + inlineCount;
+          const container = document.createElement("span");
+          container.id = inlineId;
+          container.className = "inline-abc-paper";
+
+          codeEl.replaceWith(container);
+
+          const abcText = formatAbcText(text);
+
+          if (window.ABCJS) {
+            const scale = 1;
+
+            const visualObj = ABCJS.renderAbc(inlineId, abcText, {
+              scale: scale,
+              paddingtop: 0,
+              paddingbottom: 0,
+              paddingleft: 0,
+              paddingright: 0,
+              staffwidth: 0,
+              add_classes: true
+            })[0];
+
+            // クロップ処理（あまり幅カット）
+            const svg = container.querySelector("svg");
+            if (svg) {
+              try {
+                const bbox = svg.getBBox();
+                if (bbox && bbox.width > 0) {
+                  const padX = 4;
+                  const padY = 2;
+                  const cropX = bbox.x - padX;
+                  const cropY = bbox.y - padY;
+                  const cropW = bbox.width + (padX * 2);
+                  const cropH = bbox.height + (padY * 2);
+
+                  svg.setAttribute("viewBox", `${cropX} ${cropY} ${cropW} ${cropH}`);
+
+                  const realWidth = Math.ceil(cropW * scale);
+                  const realHeight = Math.ceil(cropH * scale);
+
+                  svg.setAttribute("width", realWidth);
+                  svg.setAttribute("height", realHeight);
+                  svg.style.setProperty("width", realWidth + "px", "important");
+                  svg.style.setProperty("height", realHeight + "px", "important");
+                  svg.style.setProperty("max-width", "none", "important");
+
+                  container.style.setProperty("width", realWidth + "px", "important");
+                  container.style.setProperty("height", realHeight + "px", "important");
+                  container.style.setProperty("max-width", "none", "important");
+                }
+              } catch (e) {}
+            }
+
+            // 共通のクリック再生イベントを付与
+            attachClickToPlay(container, visualObj);
+          }
+        }
+      });
+
     });
   </script>
 </body>

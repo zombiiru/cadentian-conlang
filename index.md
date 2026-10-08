@@ -7,11 +7,9 @@ title: タイトル
 
 ここにメモを**Markdown**で書きます。
 
+これは本文です。例えばドレミの音階 `abc: C D E F` や、ソの音 `abc: K:C G` を文章中に埋め込めます。
+
 ### ドレミの基本
 ```abc
-X:1
-M:4/4
-L:1/4
-K:C
-C D E F | G A B c |
+C D E F G A B c |
 ```
