@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page.title | default: "" }}</title>
+  <!-- abcjs の JS と CSS -->
+  <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/dist/abcjs-basic-min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/plugin/abcjs-plugin.css">
+  <style>
+    body { max-width: 800px; margin: 0 auto; padding: 20px; font-family: sans-serif; line-height: 1.6; }
+    .abc-container { background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #eee; }
+  </style>
+</head>
+<body>
+
+  <!-- Markdown の内容がここに挿入されます -->
+  {{ content }}
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Markdown 内の ```abc のコードブロックをすべて取得
+      const abcCodes = document.querySelectorAll("code.language-abc");
+
+      abcCodes.forEach((codeEl, index) => {
+        const abcText = codeEl.textContent;
+        const parentPre = codeEl.parentElement; // <pre>タグ
+
+        // 楽譜とプレイヤーを入れる容器を作成
+        const container = document.createElement("div");
+        container.className = "abc-container";
+        const paperId = "abc-paper-" + index;
+        const audioId = "abc-audio-" + index;
+
+        container.innerHTML = `<div id="${paperId}"></div><div id="${audioId}"></div>`;
+        parentPre.replaceWith(container); // 元のコードブロックを容器と置換
+
+        // 1. 楽譜レンダリング
+        const visualObj = ABCJS.renderAbc(paperId, abcText)[0];
+
+        // 2. 音声プレイヤー初期化
+        if (ABCJS.synth.supportsAudio()) {
+          const synthControl = new ABCJS.synth.SynthController();
+          synthControl.load("#" + audioId, null, {
+            displayRestart: true,
+            displayPlay: true,
+            displayProgress: true,
+            displayWarp: true
+          });
+
+          const createSynth = new ABCJS.synth.CreateSynth();
+          createSynth.init({ visualObj: visualObj }).then(function () {
+            synthControl.setTune(visualObj, false);
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
