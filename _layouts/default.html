@@ -17,15 +17,15 @@
       border-radius: 8px;
       margin: 20px 0;
       border: 1px solid #eee;
-      cursor: pointer; /* クリック可能であることを示す */
+      cursor: pointer;
       transition: background-color 0.2s, border-color 0.2s;
     }
     .abc-container:hover {
-      background-color: #f0f4fe; /* ホバー時の背景色 */
+      background-color: #f0f4fe;
     }
     .abc-container.abc-playing {
-      background-color: #fce8e6; /* 再生中の背景色 */
-      border-color: #d93025; /* 再生中の枠線 */
+      background-color: #fce8e6;
+      border-color: #d93025;
     }
     
     /* インライン楽譜のスタイル */
@@ -102,7 +102,6 @@
         container.addEventListener("click", async function(e) {
           e.stopPropagation();
 
-          // 再生中なら停止
           if (isPlaying) {
             if (synth) synth.stop();
             if (timingCallbacks) timingCallbacks.stop();
@@ -116,11 +115,17 @@
           try {
             if (!synth) {
               synth = new ABCJS.synth.CreateSynth();
-              await synth.init({ visualObj: visualObj });
+              
+              // ★ Player (Synth) 側のオプションでコード伴奏をオフにする
+              await synth.init({
+                visualObj: visualObj,
+                options: {
+                  chordsOff: true // コード記号（"C"等）の自動伴奏音声をオフ
+                }
+              });
               await synth.prime();
             }
 
-            // 音の進行に合わせた赤色ハイライトタイマー
             timingCallbacks = new ABCJS.TimingCallbacks(visualObj, {
               eventCallback: function(ev) {
                 clearHighlight();
@@ -140,7 +145,6 @@
             timingCallbacks.start();
             synth.start();
 
-            // 演奏終了時の自動停止
             const duration = (visualObj.getTotalTime() || 2) * 1000;
             stopTimer = setTimeout(() => {
               isPlaying = false;
@@ -186,7 +190,6 @@
               add_classes: true
             })[0];
 
-            // 共通のクリック再生イベントを付与
             attachClickToPlay(container, visualObj);
           }
         }
@@ -225,7 +228,6 @@
               add_classes: true
             })[0];
 
-            // クロップ処理（あまり幅カット）
             const svg = container.querySelector("svg");
             if (svg) {
               try {
@@ -256,7 +258,6 @@
               } catch (e) {}
             }
 
-            // 共通のクリック再生イベントを付与
             attachClickToPlay(container, visualObj);
           }
         }
