@@ -3,55 +3,73 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ page.title | default: "" }}</title>
+  <title>{{ page.title | default: "楽譜メモ" }}</title>
   <!-- abcjs の JS と CSS -->
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/dist/abcjs-basic-min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/abcjs-audio.css">
-  <style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/abcjs-audio.css"><style>
     body { max-width: 800px; margin: 0 auto; padding: 20px; font-family: sans-serif; line-height: 1.6; }
     .abc-container { background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #eee; }
   </style>
 </head>
 <body>
 
-  <!-- Markdown の内容がここに挿入されます -->
   {{ content }}
-
   <script>
     document.addEventListener("DOMContentLoaded", function() {
-      // Markdown 内の ```abc のコードブロックをすべて取得
-      const abcCodes = document.querySelectorAll("code.language-abc");
+      const preElements = document.querySelectorAll("pre");
 
-      abcCodes.forEach((codeEl, index) => {
-        const abcText = codeEl.textContent;
-        const parentPre = codeEl.parentElement; // <pre>タグ
+      let count = 0;
+      preElements.forEach((pre) => {
+        const abcText = pre.textContent.trim();
 
-        // 楽譜とプレイヤーを入れる容器を作成
-        const container = document.createElement("div");
-        container.className = "abc-container";
-        const paperId = "abc-paper-" + index;
-        const audioId = "abc-audio-" + index;
+        if (abcText.includes("X:") && abcText.includes("K:")) {
+          count++;
+          const index = count;
 
-        container.innerHTML = `<div id="${paperId}"></div><div id="${audioId}"></div>`;
-        parentPre.replaceWith(container); // 元のコードブロックを容器と置換
+          const targetEl = pre.closest('.highlighter-rouge') || pre;
 
-        // 1. 楽譜レンダリング
-        const visualObj = ABCJS.renderAbc(paperId, abcText)[0];
+          const container = document.createElement("div");
+          container.className = "abc-container";
+          const paperId = "abc-paper-" + index;
+          const audioId = "abc-audio-" + index;
+          container.innerHTML = `<div id="${paperId}"></div><div id="${audioId}"></div>`;
 
-        // 2. 音声プレイヤー初期化
-        if (ABCJS.synth.supportsAudio()) {
-          const synthControl = new ABCJS.synth.SynthController();
-          synthControl.load("#" + audioId, null, {
-            displayRestart: true,
-            displayPlay: true,
-            displayProgress: true,
-            displayWarp: true
-          });
+          targetEl.replaceWith(container);
 
-          const createSynth = new ABCJS.synth.CreateSynth();
-          createSynth.init({ visualObj: visualObj }).then(function () {
-            synthControl.setTune(visualObj, false);
-          });
+          if (window.ABCJS) {
+            const visualObj = ABCJS.renderAbc(paperId, abcText)[0];
+
+            if (ABCJS.synth && ABCJS.synth.supportsAudio() && visualObj) {
+              const synthControl = new ABCJS.synth.SynthController();
+              
+              // プレイヤーの初期化
+              synthControl.load("#" + audioId, null, {
+                displayRestart: true,
+                displayPlay: true,
+                displayProgress: true,
+                displayWarp: true
+              });
+
+              // 音源データ(SoundFont)の読み込み先を指定
+              const soundFontUrl = "https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/";
+
+              const createSynth = new ABCJS.synth.CreateSynth();
+              createSynth.init({
+                visualObj: visualObj,
+                options: {
+                  soundFontURL: soundFontUrl
+                }
+              }).then(function () {
+                synthControl.setTune(visualObj, false, {
+                  soundFontURL: soundFontUrl
+                }).then(function () {
+                  console.log("Audio loaded successfully.");
+                });
+              }).catch(function (error) {
+                console.error("Audio synth error:", error);
+              });
+            }
+          }
         }
       });
     });
