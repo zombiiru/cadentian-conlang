@@ -8,6 +8,30 @@
   <script type="module">
     import mermaid from '[https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs](https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs)';
     mermaid.initialize({ startOnLoad: true });
+    document.addEventListener("DOMContentLoaded", function () {
+      // Jekyll が出力するコードブロック (<pre><code class="language-mermaid">) を Mermaid用コンテナに置換
+      document.querySelectorAll("pre code.language-mermaid, pre code.mermaid").forEach((block) => {
+        const div = document.createElement("div");
+        div.className = "mermaid";
+        div.textContent = block.textContent;
+        block.closest("pre").replaceWith(div);
+      });
+      // 再スキャンして描画を実行
+      mermaid.contentLoaded();
+    });
+  </script>
+  <!-- MathJax による数式（$ 囲み）の自動レンダリング設定 -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script type="text/javascript" id="MathJax-script" async
+    src="[https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js](https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js)">
   </script>
   <!-- abcjs の JS と CSS -->
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/dist/abcjs-basic-min.js"></script>
