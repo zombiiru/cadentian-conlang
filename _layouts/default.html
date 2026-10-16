@@ -4,38 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ page.title | default: "タイトル" }}</title>
-  <!-- Mermaid.js の読み込み -->
+  
+  <!-- Mermaid.js の読み込み（URLのMarkdown形式を修正） -->
   <script type="module">
-    import mermaid from '[https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs](https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs)';
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
     mermaid.initialize({ startOnLoad: true });
     document.addEventListener("DOMContentLoaded", function () {
-      // Jekyll が出力するコードブロック (<pre><code class="language-mermaid">) を Mermaid用コンテナに置換
+      // Jekyll が出力するコードブロックを Mermaid用コンテナに置換
       document.querySelectorAll("pre code.language-mermaid, pre code.mermaid").forEach((block) => {
         const div = document.createElement("div");
         div.className = "mermaid";
         div.textContent = block.textContent;
-        block.closest("pre").replaceWith(div);
+        const targetEl = block.closest('.highlighter-rouge') || block.closest('pre');
+        if (targetEl) {
+          targetEl.replaceWith(div);
+        }
       });
-      // 再スキャンして描画を実行
       mermaid.contentLoaded();
     });
   </script>
+
   <!-- MathJax による数式（$ 囲み）の自動レンダリング設定 -->
   <script>
     window.MathJax = {
       tex: {
         inlineMath: [['$', '$'], ['\\(', '\\)']],
-        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        displayMath: [['$$', '$$'], ['[', ']']]
       },
       svg: { fontCache: 'global' }
     };
   </script>
+  <!-- URLのMarkdown形式を修正 -->
   <script type="text/javascript" id="MathJax-script" async
-    src="[https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js](https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js)">
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
   </script>
+
   <!-- abcjs の JS と CSS -->
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/dist/abcjs-basic-min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/abcjs-audio.css">
+  
   <style>
     body { max-width: 800px; margin: 0 auto; padding: 20px; font-family: sans-serif; line-height: 1.8; }
     
@@ -145,11 +152,10 @@
             if (!synth) {
               synth = new ABCJS.synth.CreateSynth();
               
-              // ★ Player (Synth) 側のオプションでコード伴奏をオフにする
               await synth.init({
                 visualObj: visualObj,
                 options: {
-                  chordsOff: true // コード記号（"C"等）の自動伴奏音声をオフ
+                  chordsOff: true
                 }
               });
               await synth.prime();
